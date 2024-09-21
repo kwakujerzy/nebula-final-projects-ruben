@@ -94,6 +94,9 @@ const StudentList = () => {
                     <Link to={`/edit-student/${student.StudentID}`} className="text-indigo-600 hover:text-indigo-900 mr-4">
                       Edit
                     </Link>
+                    <Link to={`/assignments/${student.StudentID}`} className="text-blue-600 hover:text-blue-900 mr-4">
+                      View Assignments
+                    </Link>
                     <button
                       onClick={() => handleDelete(student.StudentID)}
                       className="text-red-600 hover:text-red-900"

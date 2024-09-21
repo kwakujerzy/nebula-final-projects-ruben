@@ -1,17 +1,31 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 const AddAttendance = () => {
-  const { studentId } = useParams();
   const navigate = useNavigate();
   const [attendance, setAttendance] = useState({
-    attendanceId: '',
-    studentId: studentId,
+    studentId: '',
     date: '',
     status: ''
   });
+  const [students, setStudents] = useState([]);
   const [errorMessage, setErrorMessage] = useState('');
+
+  useEffect(() => {
+    // Fetch the list of students
+    const fetchStudents = async () => {
+      try {
+        const response = await axios.get('http://localhost:5000/students');
+        setStudents(response.data);
+      } catch (error) {
+        console.error('Error fetching students:', error.response ? error.response.data : error.message);
+        setErrorMessage('Failed to load students.');
+      }
+    };
+
+    fetchStudents();
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -25,7 +39,8 @@ const AddAttendance = () => {
     e.preventDefault();
     try {
       await axios.post('http://localhost:5000/attendance', attendance);
-      navigate(`/attendance/${studentId}`);
+      // Navigate to AttendanceList after successful submission
+      navigate('/attendance');
     } catch (error) {
       console.error('Error adding attendance:', error.response ? error.response.data : error.message);
       setErrorMessage('Failed to add attendance record.');
@@ -38,16 +53,22 @@ const AddAttendance = () => {
       {errorMessage && <div className="text-red-600 mb-4">{errorMessage}</div>}
       <form onSubmit={handleSubmit}>
         <div className="mb-4">
-          <label htmlFor="attendanceId" className="block text-sm font-medium text-gray-700">Attendance ID</label>
-          <input
-            type="text"
-            id="attendanceId"
-            name="attendanceId"
-            value={attendance.attendanceId}
+          <label htmlFor="studentId" className="block text-sm font-medium text-gray-700">Student</label>
+          <select
+            id="studentId"
+            name="studentId"
+            value={attendance.studentId}
             onChange={handleChange}
             required
             className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50"
-          />
+          >
+            <option value="">Select a student</option>
+            {students.map(student => (
+              <option key={student.StudentID} value={student.StudentID}>
+                {student.Name}
+              </option>
+            ))}
+          </select>
         </div>
         <div className="mb-4">
           <label htmlFor="date" className="block text-sm font-medium text-gray-700">Date</label>

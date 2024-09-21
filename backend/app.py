@@ -120,15 +120,43 @@ def get_all_cohorts():
         return jsonify(cohorts)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+    
 
 ### Attendance Routes
+# Create a new attendance record
+@app.route('/attendance/<attendance_id>', methods=['GET'])
+def get_attendance(attendance_id):
+    """
+    Fetch an attendance record by its ID.
+
+    Args:
+        attendance_id (str): The ID of the attendance record to fetch.
+
+    Returns:
+        JSON response: Contains the attendance record or an error message.
+    """
+    try:
+        # Attempt to retrieve the attendance record from the database
+        attendance_record = attendance_table.get_item(Key={'attendanceId': attendance_id})
+        
+        # Check if the record exists in the response
+        if 'Item' in attendance_record:
+            # Return the attendance record with a 200 OK status
+            return jsonify(attendance_record['Item']), 200
+        else:
+            # Return a 404 Not Found status if the record does not exist
+            return jsonify({'error': 'Attendance record not found'}), 404
+    except Exception as e:
+        # Return a 500 Internal Server Error status with the error message
+        return jsonify({'error': str(e)}), 500
+
 
 # Create a new attendance record
 @app.route('/attendance', methods=['POST'])
 def create_attendance():
     try:
         data = request.json
-        required_fields = ['attendanceId', 'studentId', 'date', 'status']
+        required_fields = ['studentId', 'date', 'status']
         if not all(field in data for field in required_fields):
             return jsonify({'error': 'Missing required fields'}), 400
 
@@ -137,17 +165,20 @@ def create_attendance():
         if 'Item' not in response:
             return jsonify({'error': 'Student not found'}), 404
 
+        # Generate a new attendance ID
+        attendance_id = str(uuid.uuid4())
+
         # Insert attendance record
         attendance_table.put_item(Item={
-            'attendanceId': data['attendanceId'],
+            'attendanceId': attendance_id,
             'studentId': data['studentId'],
             'date': data['date'],
             'status': data['status']
         })
-        return jsonify(data), 201
+        return jsonify({'attendanceId': attendance_id, 'studentId': data['studentId'], 'date': data['date'], 'status': data['status']}), 201
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-
+    
 # Get all attendance records for a specific student
 @app.route('/attendance', methods=['GET'])
 def get_all_attendance():
@@ -178,75 +209,104 @@ def get_all_attendance():
         return jsonify(all_records)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+    
 # Update an existing attendance record
 @app.route('/attendance/<attendance_id>', methods=['PUT'])
 def update_attendance(attendance_id):
+    """
+    Update an existing attendance record by its ID.
+
+    Args:
+        attendance_id (str): The ID of the attendance record to update.
+
+    Returns:
+        JSON response: Confirmation of the update or an error message.
+    """
     try:
+        # Log incoming request data
         data = request.json
+        print("Incoming data:", data)
+
         update_expression = []
         expression_attribute_values = {}
+        expression_attribute_names = {}
 
+        # Build the update expression and values
         if 'studentId' in data:
             update_expression.append('studentId = :s')
             expression_attribute_values[':s'] = data['studentId']
         if 'date' in data:
-            update_expression.append('date = :d')
+            update_expression.append('#d = :d')
             expression_attribute_values[':d'] = data['date']
+            expression_attribute_names['#d'] = 'date'  # Map to reserved keyword
         if 'status' in data:
-            update_expression.append('status = :st')
+            update_expression.append('#st = :st')  # Use placeholder for status
             expression_attribute_values[':st'] = data['status']
+            expression_attribute_names['#st'] = 'status'  # Map to reserved keyword
 
         if not update_expression:
             return jsonify({'error': 'No fields to update'}), 400
 
         update_expr = 'SET ' + ', '.join(update_expression)
 
+        # Log the update expression and values
+        print("Update expression:", update_expr)
+        print("Expression attribute values:", expression_attribute_values)
+
+        # Attempt to update the item in the database
         attendance_table.update_item(
             Key={'attendanceId': attendance_id},
             UpdateExpression=update_expr,
             ExpressionAttributeValues=expression_attribute_values,
+            ExpressionAttributeNames=expression_attribute_names,  # Add this line
             ReturnValues='UPDATED_NEW'
         )
+        
         return jsonify({'message': 'Attendance record updated successfully'})
+    
     except Exception as e:
+        print("Error occurred:", str(e))  # Log the error message
         return jsonify({'error': str(e)}), 500
 
-# Delete an attendance record
-@app.route('/attendance/<attendance_id>', methods=['DELETE'])
-def delete_attendance(attendance_id):
-    try:
-        attendance_table.delete_item(Key={'attendanceId': attendance_id})
-        return jsonify({'message': 'Attendance record deleted successfully'}), 204
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
 
 ### Assignments Routes
 
-# Create a new assignment record
+# Create a new assignmen
 @app.route('/assignments', methods=['POST'])
 def create_assignment():
     try:
         data = request.json
+        print("Received data:", data)  # Log the received data
+
         required_fields = ['assignmentId', 'studentId', 'assignmentName', 'completionStatus', 'dueDate']
         if not all(field in data for field in required_fields):
             return jsonify({'error': 'Missing required fields'}), 400
 
         # Verify that the student exists
         response = student_table.get_item(Key={'StudentID': data['studentId']})
+        print("Student lookup response:", response)  # Log the response from DynamoDB
+
         if 'Item' not in response:
             return jsonify({'error': 'Student not found'}), 404
 
-        # Insert assignment record
+        # Convert assignmentId to string to match DynamoDB's expected type
+        assignment_id_str = str(data['assignmentId'])
+
+        # Insert assignment record into DynamoDB
         assignment_table.put_item(Item={
-            'assignmentId': data['assignmentId'],
+            'assignmentId': assignment_id_str,  # Convert to string
             'studentId': data['studentId'],
             'assignmentName': data['assignmentName'],
             'completionStatus': data['completionStatus'],
             'dueDate': data['dueDate']
         })
+        print("Assignment created successfully")  # Log success message
         return jsonify(data), 201
+
     except Exception as e:
+        print("Error creating assignment:", str(e))  # Log the error
         return jsonify({'error': str(e)}), 500
+
 
 # Get all assignment records for a specific student
 @app.route('/assignments/<student_id>', methods=['GET'])
@@ -259,7 +319,8 @@ def get_assignments(student_id):
         return jsonify(assignment_records)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-
+    
+    
 # Update an existing assignment record
 @app.route('/assignments/<assignment_id>', methods=['PUT'])
 def update_assignment(assignment_id):

@@ -1,42 +1,64 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { Link, useParams } from 'react-router-dom';
 
 const AttendanceList = () => {
-  const { studentName } = useParams(); // Get studentName from route parameters
+  const { studentName } = useParams();
   const [attendanceRecords, setAttendanceRecords] = useState([]);
   const [filteredRecords, setFilteredRecords] = useState([]);
+  const [students, setStudents] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const searchTimeoutRef = useRef(null);
 
   useEffect(() => {
-    if (!studentName) {
-      setErrorMessage('Student name is required.');
-      setLoading(false);
-      return;
-    }
+    const fetchStudents = async () => {
+      try {
+        const response = await axios.get('http://localhost:5000/students');
+        return response.data;
+      } catch (error) {
+        setErrorMessage('Failed to load student data.');
+        return [];
+      }
+    };
 
     const fetchAttendanceRecords = async () => {
-      console.log('Fetching attendance records for student name:', studentName);
-
       try {
-        const response = await axios.get(`http://localhost:5000/attendance`, {
-          params: { studentName }
+        const response = await axios.get('http://localhost:5000/attendance');
+        const attendanceData = response.data;
+        const studentData = await fetchStudents();
+
+        // Create a map for quick student name lookup
+        const studentMap = {};
+        studentData.forEach(student => {
+          studentMap[student.StudentID] = student.Name;
         });
-        setAttendanceRecords(response.data);
-        setFilteredRecords(response.data); // Set filtered list as well
-        setLoading(false);
+
+        // Map attendance records with student names
+        const updatedRecords = attendanceData.map(record => ({
+          ...record,
+          studentName: studentMap[record.studentId] || 'Unknown' // Default to 'Unknown' if not found
+        }));
+
+        setAttendanceRecords(updatedRecords);
+        setFilteredRecords(updatedRecords);
       } catch (error) {
-        console.error('Error fetching attendance records:', error.response ? error.response.data : error.message);
         setErrorMessage('Failed to load attendance records.');
+      } finally {
         setLoading(false);
       }
     };
 
     fetchAttendanceRecords();
-  }, [studentName]);
+  }, []);
+
+  const handleSearch = useCallback((term) => {
+    const filtered = attendanceRecords.filter(record =>
+      record.date.includes(term) || record.status.toLowerCase().includes(term.toLowerCase())
+    );
+    setFilteredRecords(filtered);
+  }, [attendanceRecords]);
 
   useEffect(() => {
     if (searchTimeoutRef.current) {
@@ -44,16 +66,13 @@ const AttendanceList = () => {
     }
 
     searchTimeoutRef.current = setTimeout(() => {
-      if (searchTerm) {
-        const filtered = attendanceRecords.filter(record =>
-          record.date.includes(searchTerm) || record.status.toLowerCase().includes(searchTerm.toLowerCase())
-        );
-        setFilteredRecords(filtered);
-      } else {
-        setFilteredRecords(attendanceRecords);
-      }
-    }, 300); // Debounce delay
-  }, [searchTerm, attendanceRecords]);
+      handleSearch(searchTerm);
+    }, 300);
+
+    return () => {
+      clearTimeout(searchTimeoutRef.current);
+    };
+  }, [searchTerm, handleSearch]);
 
   const handleDelete = async (attendanceId) => {
     if (window.confirm('Are you sure you want to delete this attendance record?')) {
@@ -62,7 +81,6 @@ const AttendanceList = () => {
         setAttendanceRecords(attendanceRecords.filter(record => record.attendanceId !== attendanceId));
         setFilteredRecords(filteredRecords.filter(record => record.attendanceId !== attendanceId));
       } catch (error) {
-        console.error('Error deleting attendance record:', error.response ? error.response.data : error.message);
         setErrorMessage('Failed to delete attendance record.');
       }
     }

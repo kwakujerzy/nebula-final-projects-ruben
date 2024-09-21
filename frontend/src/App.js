@@ -13,6 +13,9 @@ import Dropdown from './components/Dropdown';
 import AttendanceList from './components/AttendanceList';
 import AddAttendance from './components/AddAttendance';
 import EditAttendance from './components/EditAttendance';
+import AssignmentsList from './components/AssignmentsList';
+import AssignmentsForm from './components/AssignmentsForm';
+import AllAssignments from './components/AllAssignments';
 
 import axios from 'axios';
 
@@ -23,6 +26,7 @@ const App = () => {
   const [totalCohorts, setTotalCohorts] = useState(0);
   const [attendanceRate, setAttendanceRate] = useState('N/A');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const studentId = "1"; // Replace this with a dynamic value
 
   useEffect(() => {
     const fetchData = async () => {
@@ -106,6 +110,7 @@ const App = () => {
                 }
               />
               <Route path="/students" element={<StudentList />} />
+              <Route path="/assignments/:studentId" element={<AssignmentsList />} />
               <Route path="/add-student" element={<AddStudent />} />
               <Route path="/edit-student/:studentId" element={<EditStudent />} />
               <Route path="/cohorts" element={<CohortList />} />
@@ -116,6 +121,12 @@ const App = () => {
               <Route path="/edit-attendance/:attendanceId" element={<EditAttendance />} />
               <Route path="/attendance/:studentName" component={AttendanceList} />
               <Route path="/add-attendance/:studentName" component={AddAttendance} />  
+              {/*<Route path="/assignments/:studentId" element={<AssignmentsList />} />*/}
+              <Route path="/assignments" element={<AllAssignments studentId={studentId} />} />
+              <Route path="/assignments" element={<AssignmentsList />} />
+              <Route path="/assignments/new" element={<AssignmentsForm />} />
+
+
               
             </Routes>
           </main>

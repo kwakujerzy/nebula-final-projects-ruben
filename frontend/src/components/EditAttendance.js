@@ -6,25 +6,40 @@ const EditAttendance = () => {
   const { attendanceId } = useParams();
   const navigate = useNavigate();
   const [attendance, setAttendance] = useState({
-    attendanceId: '',
     studentId: '',
     date: '',
     status: ''
   });
+  const [students, setStudents] = useState([]);
   const [errorMessage, setErrorMessage] = useState('');
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const fetchAttendance = async () => {
+      setLoading(true);
       try {
         const response = await axios.get(`http://localhost:5000/attendance/${attendanceId}`);
         setAttendance(response.data);
       } catch (error) {
         console.error('Error fetching attendance record:', error.response ? error.response.data : error.message);
         setErrorMessage('Failed to load attendance record.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const fetchStudents = async () => {
+      try {
+        const response = await axios.get('http://localhost:5000/students');
+        setStudents(response.data);
+      } catch (error) {
+        console.error('Error fetching students:', error.response ? error.response.data : error.message);
+        setErrorMessage('Failed to load students.');
       }
     };
 
     fetchAttendance();
+    fetchStudents();
   }, [attendanceId]);
 
   const handleChange = (e) => {
@@ -37,14 +52,22 @@ const EditAttendance = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    try {
-      await axios.put(`http://localhost:5000/attendance/${attendanceId}`, attendance);
-      navigate(`/attendance/${attendance.studentId}`);
-    } catch (error) {
-      console.error('Error updating attendance:', error.response ? error.response.data : error.message);
-      setErrorMessage('Failed to update attendance record.');
+    if (window.confirm('Are you sure you want to update this attendance record?')) {
+      setLoading(true);
+      try {
+        await axios.put(`http://localhost:5000/attendance/${attendanceId}`, attendance);
+        navigate('/attendance'); // Redirect to the attendance list page
+      } catch (error) {
+        console.error('Error updating attendance:', error.response ? error.response.data : error.message);
+        setErrorMessage('Failed to update attendance record.');
+      } finally {
+        setLoading(false);
+      }
     }
   };
+  
+
+  if (loading) return <div>Loading...</div>;
 
   return (
     <div className="p-6 bg-white rounded-lg shadow-md">
@@ -52,16 +75,22 @@ const EditAttendance = () => {
       {errorMessage && <div className="text-red-600 mb-4">{errorMessage}</div>}
       <form onSubmit={handleSubmit}>
         <div className="mb-4">
-          <label htmlFor="attendanceId" className="block text-sm font-medium text-gray-700">Attendance ID</label>
-          <input
-            type="text"
-            id="attendanceId"
-            name="attendanceId"
-            value={attendance.attendanceId}
+          <label htmlFor="studentId" className="block text-sm font-medium text-gray-700">Student</label>
+          <select
+            id="studentId"
+            name="studentId"
+            value={attendance.studentId}
             onChange={handleChange}
-            disabled
-            className="mt-1 block w-full border-gray-300 rounded-md shadow-sm bg-gray-100"
-          />
+            required
+            className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50"
+          >
+            <option value="">Select a student</option>
+            {students.map(student => (
+              <option key={student.StudentID} value={student.StudentID}>
+                {student.Name}
+              </option>
+            ))}
+          </select>
         </div>
         <div className="mb-4">
           <label htmlFor="date" className="block text-sm font-medium text-gray-700">Date</label>
