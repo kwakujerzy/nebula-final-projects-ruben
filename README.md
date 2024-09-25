@@ -1,4 +1,4 @@
-Project Nebula: Develped by elias from  Azubi Africa.
+Project Nebula: Develped by ruben from  Azubi Africa.
 Overview:
 
 Project Nebula is an ambitious mission aimed at revolutionizing Azubi Africa’s educational and operational framework. Through this centralized, interactive platform, we empower students and staff by providing tools to track progress, share knowledge, and foster community engagement. Built using Flask for the backend, React for the frontend, and DynamoDB as our database, the project leverages the power of AWS, Docker, and Python to create a seamless, efficient, and scalable solution.
